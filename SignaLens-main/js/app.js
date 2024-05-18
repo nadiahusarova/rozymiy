@@ -1,4 +1,3 @@
-//Declaramos las variables
 let webCamera = null;
 let model = null;
 let letterBuffer = [];
@@ -9,197 +8,278 @@ const btnSave = document.getElementById('btnSave');
 const btnTrain = document.getElementById('btnTrain');
 let modelTraining = false;
 
-//Claes de las letras del alfabeto
-const classes = { 1: "A", 2: "B", 3: "C", 4: "D", 5: "E", 6: "F", 7: "G", 8: "H", 9: "I", 10: "J", 11: "K", 12: "L", 13: "M", 14: "N", 15: "Ñ", 16: "O", 17: "P", 18: "Q", 19: "R", 20: "S", 21: "T", 22: "U", 23: "V", 24: "W", 25: "X", 26: "Y", 27: "Z" };
+const imageWidth = 200; // Зменшуємо розмір зображення для прискорення обробки
+const imageHeight = 200;
 
-// Variable global para almacenar el modelo de Handpose
+// Класи літер алфавіту
+const classes = { 1: "А", 2: "Б", 3: "В", 4: "Г", 5: "Ґ", 6: "Д", 7: "Е", 8: "Є", 9: "Ж", 10: "З", 11: "И", 12: "І", 13: "Ї", 14: "Й", 15: "К", 16: "Л", 17: "М", 18: "Н", 19: "О", 20: "П", 21: "Р", 22: "С", 23: "Т", 24: "У", 25: "Ф", 26: "Х", 27: "Ц", 28: "Ч", 29: "Ш", 30: "Щ", 31: "Ь", 32: "Ю", 33: "Я" };
+
+// Змінна для зберігання моделі Handpose
 let handposeModel = null;
 
-// Función asincrónica para cargar el modelo Handpose de TensorFlow.js.
-// Una vez cargado, muestra un mensaje en la consola.
 async function loadHandposeModel() {
   handposeModel = await handpose.load();
   console.log("Handpose model loaded");
 }
 
-// Función para dibujar la mano detectada por el modelo Handpose en un canvas.
-// Toma las predicciones de Handpose y el contexto del canvas como argumentos.
 function drawHand(handPredictions, ctx) {
-  // Limpia el canvas antes de dibujar
+  // Очистити канвас
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  // Recorre cada predicción de mano detectada
-  for (let i = 0; i < handPredictions.length; i++) {
-    const keypoints = handPredictions[i].landmarks;
+  // Пройтися по кожному прогнозу руки
+  handPredictions.forEach(hand => {
+    const { landmarks, annotations } = hand;
 
-    // Dibuja puntos en cada punto clave de la mano
-    for (let j = 0; j < keypoints.length; j++) {
-      const [x, y, z] = keypoints[j];
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, 3 * Math.PI);
-      ctx.fillStyle = "red";
-      ctx.fill();
+    // Намалювати ключові точки руки
+    drawKeypoints(landmarks, ctx);
+
+    // Намалювати пальці руки
+    drawFingers(annotations, ctx);
+  });
+}
+
+// Функція для малювання ключових точок руки
+function drawKeypoints(landmarks, ctx) {
+  landmarks.forEach(([x, y, z]) => {
+    // Малюємо круглу точку
+    drawCircle(ctx, x, y, 5, "blue");
+  });
+}
+
+// Функція для малювання пальців руки
+function drawFingers(annotations, ctx) {
+  for (const finger in annotations) {
+    const points = annotations[finger];
+    // Починаємо новий шлях
+    ctx.beginPath();
+    // Перша точка визначає початок лінії
+    ctx.moveTo(points[0][0], points[0][1]);
+    // З'єднуємо всі точки
+    for (let j = 1; j < points.length; j++) {
+      ctx.lineTo(points[j][0], points[j][1]);
     }
-
-    // Dibuja las conexiones (huesos) entre los puntos clave
-    const fingers = handPredictions[i].annotations;
-    for (let finger in fingers) {
-      const points = fingers[finger];
-      ctx.beginPath();
-      ctx.moveTo(points[0][0], points[0][1]);
-
-      for (let j = 1; j < points.length; j++) {
-        ctx.lineTo(points[j][0], points[j][1]);
-      }
-
-      ctx.strokeStyle = "blue";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
+    // Налаштування властивостей лінії
+    ctx.strokeStyle = "yellow";
+    ctx.lineWidth = 2;
+    // Малюємо лінію
+    ctx.stroke();
   }
 }
 
+// Функція для малювання круглої точки
+function drawCircle(ctx, x, y, radius, color) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
 
-// Función para limpiar las letras formadas
 const clearWord = () => {
-  letterBuffer = []; // Limpiar el arreglo de letras
-  processWord(); // Actualizar la interfaz
+  letterBuffer = [];
+  processWord();
 };
 
-// Agregar ejemplo de imagen al modelo
 const addImgExample = async (classId) => {
   if (modelTraining) {
-    const img = await webCamera.capture();
+    const img = await captureImage();
     const activation = model.infer(img, "conv_preds");
     classifier.addExample(activation, classId);
     img.dispose();
   } else {
-    swal("¡Oops, el modelo no está en modo de entrenamiento!", " Haz clic en 'Entrenar' para activar el modo de entrenamiento.", "error");
+    swal("Помилка", "Модель не перебуває в режимі тренування! Натисніть кнопку 'Тренувати', щоб увімкнути режим тренування.", "error");
   }
 };
 
-// Función para procesar y mostrar la palabra formada
-const processWord = () => {
-  const word = letterBuffer.join('');
-  // Muestra la palabra en la interfaz de usuario en cada paso
-  document.getElementById("result2").innerHTML = `
-      <p><b>Palabra:</b> ${word}</p>
-  `;
+const captureImage = async () => {
+  const img = await tf.browser.fromPixels(webcamElement);
+  const resizedImg = tf.image.resizeBilinear(img, [imageWidth, imageHeight]);
+  return resizedImg;
 };
 
-// Inicialización de la aplicación
+async function classifyImage() {
+  const img = await captureImage();
+  const activation = model.infer(img, "conv_preds");
+  const result = await classifier.predictClass(activation);
+  img.dispose();
+  return result;
+}
+
+function processWord() {
+  const word = letterBuffer.join('');
+  document.getElementById("result2").textContent = `Слово: ${word}`;
+}
+
 const app = async () => {
   try {
     webCamera = await tf.data.webcam(webcamElement);
     model = await mobilenet.load();
-    await loadHandposeModel();  // Cargar handpose
+    await loadHandposeModel();
 
-    // Crea un intervalo que se ejecuta cada 2 segundos para hacer predicciones
     const interval = setInterval(async () => {
-      // Verifica si el modelo y el clasificador están cargados y listos
       if (model !== null && classifier.getNumClasses() > 0 && handposeModel !== null) {
-        // Captura una imagen de la cámara web
-        const img = await webCamera.capture();
-
-        // Obtiene predicciones de mano usando el modelo Handpose
-        const handPredictions = await handposeModel.estimateHands(img);
-
-        // Procede solo si se detecta al menos una mano
+        const handPredictions = await handposeModel.estimateHands(webcamElement);
         if (handPredictions.length > 0) {
           const canvas = document.getElementById('canvas');
           const ctx = canvas.getContext('2d');
-
-          // Dibuja la mano detectada en el canvas
           drawHand(handPredictions, ctx);
-
-          // Procede con la clasificación de la imagen capturada
-          const activation = model.infer(img, "conv_preds");
-          const result = await classifier.predictClass(activation);
-
-          // Almacena y muestra la predicción de la letra
-          letterBuffer.push(classes[result.label]);
-          document.getElementById("result").innerHTML = `
-          <p><b>Letra:</b> ${classes[result.label]}</p>
-          <p><b>Probabilidad:</b> ${result.confidences[result.label]}</p>
-          `;
-
-          // Actualiza la palabra formada en la interfaz de usuario
-          processWord();
+          const result = await classifyImage();
+          updateUI(result);
         }
-
-        // Libera los recursos de la imagen capturada
-        img.dispose();
-      } else {
-        // Muestra un mensaje si no hay un modelo cargado
-        document.getElementById("result").innerHTML = `
-      <h4>¡Oops, no me hemos encontrado un modelo entrenado!</h4>
-      <p>Por favor, carga un modelo entrenado o entrena uno nuevo. :)</p>
-    `;
       }
-    }, 2000); // Intervalo de 2 segundos
+    }, 2000);
 
-    // Nuevo botón para limpiar letras formadas
     const btnClear = document.getElementById("btnClear");
     btnClear.addEventListener("click", () => {
       clearWord();
     });
 
-    // Limpiar el intervalo cuando se cierre la ventana
     window.addEventListener("beforeunload", () => {
       clearInterval(interval);
     });
   } catch (error) {
-    console.error("Error al cargar el modelo:", error);
+    console.error("Помилка при завантаженні моделі:", error);
   }
 };
 
+function updateUI(result) {
+  const letter = classes[result.label];
+  const confidence = result.confidences[result.label];
 
-function secretMessage() {
-  swal({
-    title: "¡Hola!",
-    text: "Si eres nuestro profe, pasanos con 100 uwu",
-    icon: "success",
-    buttons: {
-      si1: {
-        text: "¡Por supuesto!",
-      },
-      si2: {
-        text: "Acepto",
-      },
-      si3: {
-        text: "Ya diga que sí :3",
-      },
-    },
+  document.getElementById("result").innerHTML = `
+    <p><b>Літера:</b> ${letter}</p>
+    <p><b>Ймовірність:</b> ${confidence.toFixed(2)}</p>
+  `;
+
+  letterBuffer.push(letter);
+  processWord();
+}
+
+const alphabetButtons = document.getElementsByClassName('alpha-btn');
+for (let i = 0; i < alphabetButtons.length; i++) {
+  alphabetButtons[i].addEventListener("click", () => {
+    const classId = alphabetButtons[i].getAttribute("data-position");
+    addImgExample(classId);
   });
 }
 
+btnLoad.addEventListener("click", async () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (file) {
+      try {
+        const jsonContent = await file.text();
+        const loadedDataset = JSON.parse(jsonContent);
+        const tensorObj = Object.entries(loadedDataset).reduce(
+          (obj, [classId, data]) => {
+            obj[classId] = tf.tensor(data.data, data.shape, data.dtype);
+            return obj;
+          },
+          {}
+        );
+
+        classifier.setClassifierDataset(tensorObj);
+      } catch (error) {
+        console.error(
+          "Помилка при завантаженні моделі з файлу JSON:",
+          error
+        );
+      }
+      swal("Відмінно!", "Модель успішно завантажено!", "success", { buttons: false, timer: 2000, });
+    }
+  };
+
+  input.click();
+});
+
+btnTrain.addEventListener("click", () => {
+  if (!model) {
+    swal("Помилка", "Модель не завантажено, будь ласка, зачекайте кілька секунд", "error");
+    return;
+  }
+
+  modelTraining = !modelTraining;
+  btnTrain.innerText = "Тренуємо...";
+  btnTrain.disabled = true;
+  btnSave.disabled = false;
+  swal("Відмінно!", "Початок тренування!", "success", {
+    buttons: false,
+    timer: 3000,
+  });
+
+  document.getElementById("alphabet-container").classList.toggle("alphabet-btn-visible", modelTraining);
+
+});
+
+btnSave.addEventListener("click", async () => {
+  if (modelTraining) {
+    const dataset = classifier.getClassifierDataset();
+    const adjustedDataset = Object.entries(dataset).reduce(
+      (obj, [classId, data]) => {
+        obj[classId] = {
+          data: Array.from(data.dataSync()),
+          shape: data.shape,
+          dtype: data.dtype,
+        };
+        return obj;
+      },
+      {}
+    );
+
+    const jsonDataset = JSON.stringify(adjustedDataset);
+
+    const blob = new Blob([jsonDataset], { type: "application/json" });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "model_trained.json";
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    swal("Відмінно!", "Модель успішно збережено!", "success");
+  } else {
+    swal("Увага", "Немає жодної навченої моделі. Спочатку навчіть одну, а потім збережіть її.", "error");
+  }
+
+  modelTraining = false;
+  btnTrain.innerText = "Тренувати";
+  btnTrain.disabled = false;
+  btnSave.disabled = true;
+});
+
+
+// Функція для показу інструкцій
 function showInstructions() {
-  // Crear un elemento modal
+  // Створення модального вікна
   const modal = document.createElement('div');
   modal.classList.add('modal');
 
-  // Contenido de las instrucciones
+  // Вміст інструкцій
   const instructionsContent = `
-        <h2>Instrucciones de Uso</h2>
-        <p>1. Haga clic en "Entrenar" para comenzar a entrenar un nuevo modelo.</p>
-        <p>2. Una vez que ha empezado el entrenamiento, vaya haciendo seña por seña
-        de las letras del alfabeto mientras da clic en los botones correspondientes a cada letra para entrenar el modelo.</p>
-        <p>3. Puede visualizar los resultados de predicción en el lado derecho de la pantalla.</p>
-        <p>4. Es necesario dar acceso a tu cámara para el funcionamiento correcto de la web app.</p>
-        <p>5. Una vez que este satisfecho con las predicciónes, guarde el modelo.</p>
-        <p>6. En caso de ya tener un modelo, puedo cargarlo en "Cargar modelo".</p>
-        <p>7. En caso de error, reinicia la página o comprueba tu conectividad a internet :)</p>
-        <p>8. ¡Disfrute de Signa Lens! :)</p>
+        <h2>Інструкції з використання</h2>
+        <p>1. Натисніть кнопку "Тренувати", щоб розпочати тренування нової моделі.</p>
+        <p>2. Коли тренування розпочалося, робіть жести з буквами алфавіту та натискайте відповідні кнопки для навчання моделі.</p>
+        <p>3. Результати передбачення можна побачити справа від екрана.</p>
+        <p>4. Для правильної роботи веб-додатка необхідний доступ до вашої веб-камери.</p>
+        <p>5. Після успішного передбачення, збережіть модель.</p>
+        <p>6. Якщо у вас вже є модель, ви можете завантажити її за допомогою кнопки "Завантажити модель".</p>
+        <p>7. У разі помилки, перезавантажте сторінку або перевірте підключення до Інтернету :)</p>
+        <p>8. Насолоджуйтесь Signa Lens! :)</p>
     `;
 
   modal.innerHTML = instructionsContent;
 
-  // Agregar el modal a la página
+  // Додавання модального вікна на сторінку
   document.body.appendChild(modal);
 
-  // Agregar un botón para cerrar el modal
+  // Додавання кнопки для закриття модального вікна
   const closeButton = document.createElement('button');
-  closeButton.innerText = 'Cerrar';
+  closeButton.innerText = 'Закрити';
   closeButton.onclick = function () {
     document.body.removeChild(modal);
   };
@@ -215,109 +295,6 @@ for (let i = 0; i < buttons.length; i++) {
   });
 }
 
-
-// Eventos de los botones (nav-bar)
-btnLoad.addEventListener("click", async () => {
-  const input = document.createElement("input"); // Crear un input
-  input.type = "file"; // Establecer el tipo de input a file
-  input.accept = ".json"; // Aceptar solo archivos JSON
-
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (file) {
-      try {
-        const jsonContent = await file.text(); // Leer el archivo
-        const loadedDataset = JSON.parse(jsonContent); // Convertir a JSON
-        const tensorObj = Object.entries(loadedDataset).reduce( // Convertir a tensores
-          (obj, [classId, data]) => {
-            obj[classId] = tf.tensor(data.data, data.shape, data.dtype);
-            return obj;
-          },
-          {}
-        );
-
-        classifier.setClassifierDataset(tensorObj); // Cargar el dataset
-      } catch (error) {
-        console.error(
-          "Error al cargar el modelo desde el archivo JSON:",
-          error
-        );
-      }
-      swal("¡Bien hecho!", "¡Modelo cargado exitosamente!", "success", { buttons: false, timer: 2000, });
-    }
-  };
-
-  input.click();
-});
-
-// Entrenar el modelo
-btnTrain.addEventListener("click", () => {
-  if (!model) {
-    swal("Oops", "El modelo no se ha cargado, por favor espera unos segundos", "error");
-    return;
-  }
-
-  // Activar el modo de entrenamiento
-  modelTraining = !modelTraining;
-  btnTrain.innerText = "Entrenando...";
-  btnTrain.disabled = true;
-  btnSave.disabled = false;
-  swal("¡Bien hecho!", "¡Comenzando entrenamiento!", "success", {
-    buttons: false,
-    timer: 3000,
-  });
-
-  // Añadir la clase para mostrar los botones de letras
-  document.getElementById("alphabet-container").classList.toggle("alphabet-btn-visible", modelTraining);
-
-});
-
-// Guardar el modelo
-btnSave.addEventListener("click", async () => {
-  if (modelTraining) {
-    // Guardar el modelo solo si está en modo de entrenamiento.
-    const dataset = classifier.getClassifierDataset();
-
-    // Ajustar la estructura del dataset
-    const adjustedDataset = Object.entries(dataset).reduce(
-      (obj, [classId, data]) => {
-        obj[classId] = {
-          data: Array.from(data.dataSync()), // Convertir a un array
-          shape: data.shape,
-          dtype: data.dtype,
-        };
-        return obj;
-      },
-      {}
-    );
-
-    const jsonDataset = JSON.stringify(adjustedDataset); // Convertir a JSON
-
-    // Crear un Blob con el JSON
-    const blob = new Blob([jsonDataset], { type: "application/json" });
-
-    // Crear un enlace de descarga
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "modelo_entrenado.json";
-
-    // Simular un clic en el enlace para iniciar la descarga
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    swal("¡Bien hecho!", "¡Modelo guardado exitosamente!", "success");
-  } else {
-    swal("¡Ey para!", "No hay ningun modelo entrenado. Primero entrena uno y después guardalo.", "error");
-  }
-
-
-  // Desactivar el modo de entrenamiento.
-  modelTraining = false;
-  btnTrain.innerText = "Entrenar";
-  btnTrain.disabled = false;
-  btnSave.disabled = true;
-});
-
-
-app();
+window.onload = () => {
+  app(); // Викликати функцію app() після завантаження сторінки
+};

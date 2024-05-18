@@ -200,7 +200,7 @@ footer a {
 #webcam,
 #canvas {
   position: absolute;
-  top: 10%;
+  /* top: 10%; */
   left: 50%;
   transform: translateX(-50%);
   max-width: 100%;
