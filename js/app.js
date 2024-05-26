@@ -123,7 +123,7 @@ const initializeModels = async () => {
   try {
     model = await mobilenet.load();
     await loadHandposeModel();
-    await loadClassifierDataset('/model_trained.json'); 
+    await loadClassifierDataset('/ModeloFinal.json'); 
   } catch (error) {
     console.error("Помилка при завантаженні моделей:", error);
   }
@@ -153,6 +153,33 @@ const startRecognition = () => {
     clearInterval(interval);
   });
 };
+
+function showInstructions() {
+  const modal = document.createElement('div');
+  modal.classList.add('modal');
+
+  const instructionsContent = `
+        <h2>Інструкції з Використання</h2>
+        <p>1. Дайте доступ до вашої камери для коректної роботи веб-додатка.</p>
+        <p>2. Після отримання доступу, веб-додаток автоматично розпочне розпізнавання жестів.</p>
+        <p>3. Виконуйте жести однієї з літер алфавіту української жестової мови перед камерою.</p>
+        <p>4. Ви можете побачити результати розпізнавання жестів у правій частині екрана.</p>
+        <p>5. У разі виникнення помилок, перезавантажте сторінку або перевірте своє інтернет-з'єднання.</p>
+        <p>6. Розумійте з Rozymiy! :)</p>
+    `;
+
+  modal.innerHTML = instructionsContent;
+
+  document.body.appendChild(modal);
+  const closeButton = document.createElement('button');
+  closeButton.innerText = 'Закрити';
+  closeButton.onclick = function () {
+    document.body.removeChild(modal);
+  };
+
+  modal.appendChild(closeButton);
+}
+
 
 const app = async () => {
   await initializeWebcam();
