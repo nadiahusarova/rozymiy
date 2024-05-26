@@ -21,16 +21,16 @@ function drawHand(handPredictions, ctx) {
 
   handPredictions.forEach(hand => {
     const { landmarks, annotations } = hand;
-    drawFingers(annotations, ctx); // Малюємо лінії по руці першими
-    drawKeypoints(landmarks, ctx); // Викликаємо функцію для малювання синіх крапок
-    drawBlueDots(annotations, ctx); // Додаємо виклик функції для малювання синіх точок
+    drawFingers(annotations, ctx); 
+    drawKeypoints(landmarks, ctx); 
+    drawBlueDots(annotations, ctx); 
   });
 }
 
 
 function drawKeypoints(landmarks, ctx) {
   landmarks.forEach(([x, y, z]) => {
-    drawCircle(ctx, x, y, 8, "blue"); // Збільшуємо радіус синіх крапок з 5 до 8
+    drawCircle(ctx, x, y, 8, "blue");
   });
 }
 
@@ -123,7 +123,7 @@ const initializeModels = async () => {
   try {
     model = await mobilenet.load();
     await loadHandposeModel();
-    await loadClassifierDataset('/model_trained.json'); // Замість 'path/to/your/model_trained.json' вставте шлях до вашого файлу моделі
+    await loadClassifierDataset('/model_trained.json'); 
   } catch (error) {
     console.error("Помилка при завантаженні моделей:", error);
   }
@@ -136,11 +136,11 @@ const startRecognition = () => {
       if (handPredictions.length > 0) {
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Очистка полотна перед кожним малюванням
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
         handPredictions.forEach(hand => {
           const { landmarks, annotations } = hand;
-          drawFingers(annotations, ctx); // Виклик функції для малювання ліній по руці
+          drawFingers(annotations, ctx); 
         });
 
         const result = await classifyImage();
@@ -183,3 +183,14 @@ function updateUI(result) {
 window.onload = () => {
   app();
 };
+
+
+
+
+
+
+
+
+
+
+
