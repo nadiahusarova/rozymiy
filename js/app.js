@@ -12,8 +12,12 @@ const classes = { 1: "А", 2: "Б", 3: "В", 4: "Г", 5: "Ґ", 6: "Д", 7: "Е",
 let handposeModel = null;
 
 async function loadHandposeModel() {
-  handposeModel = await handpose.load();
-  console.log("Handpose model loaded");
+  try {
+    handposeModel = await handpose.load();
+    console.log("Handpose model loaded");
+  } catch (error) {
+    console.error("Помилка при завантаженні моделі Handpose:", error);
+  }
 }
 
 function drawHand(handPredictions, ctx) {
@@ -21,16 +25,15 @@ function drawHand(handPredictions, ctx) {
 
   handPredictions.forEach(hand => {
     const { landmarks, annotations } = hand;
-    drawFingers(annotations, ctx); 
-    drawKeypoints(landmarks, ctx); 
-    drawBlueDots(annotations, ctx); 
+    drawFingers(annotations, ctx);
+    drawKeypoints(landmarks, ctx);
+    drawBlueDots(annotations, ctx);
   });
 }
 
-
 function drawKeypoints(landmarks, ctx) {
   landmarks.forEach(([x, y, z]) => {
-    drawCircle(ctx, x, y, 8, "blue");
+    drawCircle(ctx, x, y, 5, "blue");
   });
 }
 
@@ -60,7 +63,6 @@ function drawBlueDots(annotations, ctx) {
   }
 }
 
-
 function drawCircle(ctx, x, y, radius, color) {
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -89,7 +91,10 @@ async function classifyImage() {
 
 function processWord() {
   const word = letterBuffer.join('');
-  document.getElementById("result2").textContent = `Слово: ${word}`;
+  const resultElement = document.getElementById("result2");
+  if (resultElement) {
+    resultElement.textContent = `Слово: ${word}`;
+  }
 }
 
 async function loadClassifierDataset(url) {
@@ -123,7 +128,7 @@ const initializeModels = async () => {
   try {
     model = await mobilenet.load();
     await loadHandposeModel();
-    await loadClassifierDataset('/ModeloFinal.json'); 
+    await loadClassifierDataset('/ModeloFinal.json');
   } catch (error) {
     console.error("Помилка при завантаженні моделей:", error);
   }
@@ -135,16 +140,15 @@ const startRecognition = () => {
       const handPredictions = await handposeModel.estimateHands(webcamElement);
       if (handPredictions.length > 0) {
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        handPredictions.forEach(hand => {
-          const { landmarks, annotations } = hand;
-          drawFingers(annotations, ctx); 
-        });
+          drawHand(handPredictions, ctx); // Виклик drawHand замість окремих функцій
 
-        const result = await classifyImage();
-        updateUI(result);
+          const result = await classifyImage();
+          updateUI(result);
+        }
       }
     }
   }, 1000);
@@ -180,44 +184,35 @@ function showInstructions() {
   modal.appendChild(closeButton);
 }
 
-
 const app = async () => {
   await initializeWebcam();
   await initializeModels();
   startRecognition();
 
   const btnClear = document.getElementById("btnClear");
-  btnClear.addEventListener("click", () => {
-    clearWord();
-  });
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      clearWord();
+    });
+  }
 };
-
 
 function updateUI(result) {
   const letter = classes[result.label];
   const confidence = result.confidences[result.label];
 
-  document.getElementById("result").innerHTML = `
-    <p><b>Літера:</b> ${letter}</p>
-    <p><b>Ймовірність:</b>
-  `;
+  const resultElement = document.getElementById("result");
+  if (resultElement) {
+    resultElement.innerHTML = `
+      <p><b>Літера:</b> ${letter}</p>
+      <p><b>Ймовірність:</b> ${confidence}</p>
+    `;
+  }
 
   letterBuffer.push(letter);
   processWord();
 }
 
-
 window.onload = () => {
   app();
 };
-
-
-
-
-
-
-
-
-
-
-
