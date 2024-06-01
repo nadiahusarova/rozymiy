@@ -33,7 +33,7 @@ function drawHand(handPredictions, ctx) {
 
 function drawKeypoints(landmarks, ctx) {
   landmarks.forEach(([x, y, z]) => {
-    drawCircle(ctx, x, y, 5, "blue");
+    drawCircle(ctx, x, y, 8, "blue");
   });
 }
 
@@ -128,7 +128,7 @@ const initializeModels = async () => {
   try {
     model = await mobilenet.load();
     await loadHandposeModel();
-    await loadClassifierDataset('/ModeloFinal.json');
+    await loadClassifierDataset('/model.json');
   } catch (error) {
     console.error("Помилка при завантаженні моделей:", error);
   }
@@ -144,8 +144,7 @@ const startRecognition = () => {
           const ctx = canvas.getContext('2d');
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          drawHand(handPredictions, ctx); // Виклик drawHand замість окремих функцій
-
+          drawHand(handPredictions, ctx); 
           const result = await classifyImage();
           updateUI(result);
         }
