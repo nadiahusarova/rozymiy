@@ -128,7 +128,7 @@ const initializeModels = async () => {
   try {
     model = await mobilenet.load();
     await loadHandposeModel();
-    await loadClassifierDataset('../model.json');
+    await loadClassifierDataset('./model.json');
   } catch (error) {
     console.error("Помилка при завантаженні моделей:", error);
   }
